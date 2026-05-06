@@ -2,8 +2,8 @@ name: Dainese Daily Update
 
 on:
   schedule:
-    - cron: '0 8 * * *' # Rulează zilnic la ora 08:00 (ora UTC)
-  workflow_dispatch: # Permite pornirea manuală cu un buton
+    - cron: '0 8 * * *' # Rulează zilnic la 08:00 UTC
+  workflow_dispatch: # Buton manual
 
 jobs:
   build:
@@ -26,15 +26,31 @@ jobs:
           playwright install chromium
 
       - name: Executare Bot Dainese
+        id: run_bot
         env:
           DAINESE_USER: ${{ secrets.DAINESE_USER }}
           DAINESE_PASS: ${{ secrets.DAINESE_PASS }}
         run: python bot_furnizor.py
 
       - name: Salvare fisier in proiect (Push)
+        if: success()
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add feed_dainese_final.xlsx
           git commit -m "Update feed automat: $(date)" || echo "Nimic de actualizat"
           git push
+
+      - name: Notificare Telegram - SUCCES ✅
+        if: success()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+          -d text="✅ Bot Dainese: Actualizare reușită! Tabelul nou este gata. Link: https://raw.githubusercontent.com/${{ github.repository }}/main/feed_dainese_final.xlsx"
+
+      - name: Notificare Telegram - EROARE ❌
+        if: failure()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+          -d text="⚠️ ALERTA: Botul Dainese a eșuat! Am păstrat versiunea anterioară a fișierului pentru a nu strica importul. Verifică aici: https://github.com/${{ github.repository }}/actions"
