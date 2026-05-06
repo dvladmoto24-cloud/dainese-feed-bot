@@ -1,0 +1,40 @@
+name: Dainese Daily Update
+
+on:
+  schedule:
+    - cron: '0 8 * * *' # Rulează zilnic la ora 08:00 (ora UTC)
+  workflow_dispatch: # Permite pornirea manuală cu un buton
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout cod
+        uses: actions/checkout@v4
+
+      - name: Instalare Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalare librarii necesare
+        run: |
+          pip install pandas openpyxl playwright
+          playwright install chromium
+
+      - name: Executare Bot Dainese
+        env:
+          DAINESE_USER: ${{ secrets.DAINESE_USER }}
+          DAINESE_PASS: ${{ secrets.DAINESE_PASS }}
+        run: python bot_furnizor.py
+
+      - name: Salvare fisier in proiect (Push)
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add feed_dainese_final.xlsx
+          git commit -m "Update feed automat: $(date)" || echo "Nimic de actualizat"
+          git push
